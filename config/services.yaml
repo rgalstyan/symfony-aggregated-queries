@@ -1,0 +1,29 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    Rgalstyan\SymfonyAggregatedQueries\:
+        resource: '../src/*'
+        exclude:
+            - '../src/Bundle'
+            - '../src/DependencyInjection'
+            - '../src/Exception'
+
+    Rgalstyan\SymfonyAggregatedQueries\AggregatedQueryBuilder:
+        arguments:
+            $debug: '%aggregated_queries.debug%'
+            $enabled: '%aggregated_queries.enabled%'
+            $maxRelations: '%aggregated_queries.max_relations%'
+
+    Rgalstyan\SymfonyAggregatedQueries\Hydrator\HydratorFactory:
+        arguments:
+            $defaultHydrator: '%aggregated_queries.default_hydrator%'
+
+    Rgalstyan\SymfonyAggregatedQueries\Generator\MySqlGenerator:
+        tags:
+            - { name: 'aggregated_queries.generator', platform: 'mysql' }
+
+    Rgalstyan\SymfonyAggregatedQueries\Generator\PostgresGenerator:
+        tags:
+            - { name: 'aggregated_queries.generator', platform: 'postgresql' }
