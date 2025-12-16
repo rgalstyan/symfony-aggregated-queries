@@ -29,7 +29,7 @@
     "docs": "https://github.com/rgalstyan/symfony-aggregated-queries/blob/main/README.md"
   },
   "require": {
-    "php": "^8.1 || ^8.2 || ^8.3",
+    "php": "^8.1",
     "doctrine/dbal": "^3.6 || ^4.0",
     "doctrine/orm": "^2.14 || ^3.0",
     "symfony/config": "^6.0 || ^7.0",
