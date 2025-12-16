@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rgalstyan\SymfonyAggregatedQueries\Generator;
 
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Rgalstyan\SymfonyAggregatedQueries\Exception\DatabaseNotSupportedException;
 
@@ -36,8 +38,8 @@ final class SqlGeneratorFactory
      */
     public function create(): SqlGeneratorInterface
     {
-        $platform = strtolower($this->entityManager->getConnection()->getDatabasePlatform()->getName());
-        $platform = $platform === 'mariadb' ? 'mysql' : $platform;
+        $dbalPlatform = $this->entityManager->getConnection()->getDatabasePlatform();
+        $platform = $this->resolvePlatformKey($dbalPlatform);
 
         $generator = $this->generatorsByPlatform[$platform] ?? null;
         if ($generator === null) {
@@ -50,5 +52,17 @@ final class SqlGeneratorFactory
 
         return $generator;
     }
-}
 
+    private function resolvePlatformKey(object $platform): string
+    {
+        if ($platform instanceof AbstractMySQLPlatform) {
+            return 'mysql';
+        }
+
+        if ($platform instanceof PostgreSQLPlatform) {
+            return 'postgresql';
+        }
+
+        return strtolower($platform::class);
+    }
+}

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rgalstyan\SymfonyAggregatedQueries\Tests\Functional;
 
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Rgalstyan\SymfonyAggregatedQueries\Tests\Fixtures\Entity\Country;
@@ -27,13 +29,20 @@ final class AggregatedQueryBuilderTest extends KernelTestCase
         $this->repository = $container->get(PartnerRepository::class);
         $this->entityManager = $container->get(EntityManagerInterface::class);
 
-        $platform = $this->entityManager->getConnection()->getDatabasePlatform()->getName();
-        if (!in_array($platform, ['mysql', 'mariadb', 'postgresql'], true)) {
-            self::markTestSkipped(sprintf('DB platform "%s" is not supported for functional tests.', $platform));
+        $platform = $this->entityManager->getConnection()->getDatabasePlatform();
+        if (!$platform instanceof AbstractMySQLPlatform && !$platform instanceof PostgreSQLPlatform) {
+            self::markTestSkipped(sprintf('DB platform "%s" is not supported for functional tests.', $platform::class));
         }
 
         $this->resetSchema();
         $this->seedData();
+    }
+
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+
+        restore_exception_handler();
     }
 
     public function testLoadsJsonRelationsAndCounts(): void
@@ -102,4 +111,3 @@ final class AggregatedQueryBuilderTest extends KernelTestCase
         $this->entityManager->clear();
     }
 }
-

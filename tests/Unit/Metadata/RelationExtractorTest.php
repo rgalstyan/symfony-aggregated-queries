@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rgalstyan\SymfonyAggregatedQueries\Tests\Unit\Metadata;
 
+use ArrayAccess;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use PHPUnit\Framework\TestCase;
@@ -21,13 +22,17 @@ final class RelationExtractorTest extends TestCase
         $partnerMetadata = $this->createMock(ClassMetadata::class);
 
         $partnerMetadata->method('hasAssociation')->with('profile')->willReturn(true);
-        $partnerMetadata->method('getAssociationMapping')->with('profile')->willReturn([
-            'type' => ClassMetadata::MANY_TO_ONE,
-            'targetEntity' => Profile::class,
-            'joinColumns' => [
-                ['name' => 'profile_id', 'referencedColumnName' => 'id'],
-            ],
-        ]);
+        $partnerMetadata->method('getAssociationMapping')->with('profile')->willReturn(
+            $this->createAssociationMapping(
+                ClassMetadata::MANY_TO_ONE,
+                fieldName: 'profile',
+                sourceEntity: Partner::class,
+                targetEntity: Profile::class,
+                joinColumns: [
+                    ['name' => 'profile_id', 'referencedColumnName' => 'id'],
+                ],
+            )
+        );
 
         $entityManager->method('getClassMetadata')->with(Partner::class)->willReturn($partnerMetadata);
 
@@ -47,17 +52,28 @@ final class RelationExtractorTest extends TestCase
         $promocodeMetadata = $this->createMock(ClassMetadata::class);
 
         $partnerMetadata->method('hasAssociation')->with('promocodes')->willReturn(true);
-        $partnerMetadata->method('getAssociationMapping')->with('promocodes')->willReturn([
-            'type' => ClassMetadata::ONE_TO_MANY,
-            'targetEntity' => Promocode::class,
-            'mappedBy' => 'partner',
-        ]);
+        $partnerMetadata->method('getAssociationMapping')->with('promocodes')->willReturn(
+            $this->createAssociationMapping(
+                ClassMetadata::ONE_TO_MANY,
+                fieldName: 'promocodes',
+                sourceEntity: Partner::class,
+                targetEntity: Promocode::class,
+                joinColumns: [],
+                mappedBy: 'partner',
+            )
+        );
 
-        $promocodeMetadata->method('getAssociationMapping')->with('partner')->willReturn([
-            'joinColumns' => [
-                ['name' => 'partner_id', 'referencedColumnName' => 'id'],
-            ],
-        ]);
+        $promocodeMetadata->method('getAssociationMapping')->with('partner')->willReturn(
+            $this->createAssociationMapping(
+                ClassMetadata::MANY_TO_ONE,
+                fieldName: 'partner',
+                sourceEntity: Promocode::class,
+                targetEntity: Partner::class,
+                joinColumns: [
+                    ['name' => 'partner_id', 'referencedColumnName' => 'id'],
+                ],
+            )
+        );
 
         $entityManager->method('getClassMetadata')->willReturnCallback(
             fn (string $class): ClassMetadata => match ($class) {
@@ -82,10 +98,14 @@ final class RelationExtractorTest extends TestCase
         $partnerMetadata = $this->createMock(ClassMetadata::class);
 
         $partnerMetadata->method('hasAssociation')->with('tags')->willReturn(true);
-        $partnerMetadata->method('getAssociationMapping')->with('tags')->willReturn([
-            'type' => ClassMetadata::MANY_TO_MANY,
-            'targetEntity' => Profile::class,
-        ]);
+        $partnerMetadata->method('getAssociationMapping')->with('tags')->willReturn(
+            $this->createAssociationMapping(
+                ClassMetadata::MANY_TO_MANY,
+                fieldName: 'tags',
+                sourceEntity: Partner::class,
+                targetEntity: Profile::class,
+            )
+        );
 
         $entityManager->method('getClassMetadata')->with(Partner::class)->willReturn($partnerMetadata);
 
@@ -94,5 +114,60 @@ final class RelationExtractorTest extends TestCase
         $this->expectException(UnsupportedRelationException::class);
         $extractor->extract(Partner::class, 'tags');
     }
-}
 
+    /**
+     * @param list<array{name: string, referencedColumnName: string}> $joinColumns
+     *
+     * @return array<string, bool|int|string|array>|ArrayAccess
+     */
+    private function createAssociationMapping(
+        int $type,
+        string $fieldName,
+        string $sourceEntity,
+        string $targetEntity,
+        array $joinColumns = [],
+        string $mappedBy = '',
+    ): array|ArrayAccess {
+        if (class_exists(\Doctrine\ORM\Mapping\ManyToOneAssociationMapping::class)) {
+            if ($type === ClassMetadata::MANY_TO_ONE) {
+                return \Doctrine\ORM\Mapping\ManyToOneAssociationMapping::fromMappingArray([
+                    'fieldName' => $fieldName,
+                    'sourceEntity' => $sourceEntity,
+                    'targetEntity' => $targetEntity,
+                    'isOwningSide' => true,
+                    'joinColumns' => $joinColumns,
+                ]);
+            }
+
+            if ($type === ClassMetadata::ONE_TO_MANY) {
+                if ($mappedBy === '') {
+                    throw new \InvalidArgumentException('mappedBy is required for OneToMany association mapping.');
+                }
+
+                return \Doctrine\ORM\Mapping\OneToManyAssociationMapping::fromMappingArray([
+                    'fieldName' => $fieldName,
+                    'sourceEntity' => $sourceEntity,
+                    'targetEntity' => $targetEntity,
+                    'isOwningSide' => false,
+                    'mappedBy' => $mappedBy,
+                ]);
+            }
+
+            if ($type === ClassMetadata::MANY_TO_MANY) {
+                return new \Doctrine\ORM\Mapping\ManyToManyOwningSideMapping($fieldName, $sourceEntity, $targetEntity);
+            }
+        }
+
+        $mapping = [
+            'type' => $type,
+            'targetEntity' => $targetEntity,
+            'joinColumns' => $joinColumns,
+        ];
+
+        if ($mappedBy !== '') {
+            $mapping['mappedBy'] = $mappedBy;
+        }
+
+        return $mapping;
+    }
+}

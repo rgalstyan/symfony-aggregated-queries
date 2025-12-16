@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rgalstyan\SymfonyAggregatedQueries\Metadata;
 
+use ArrayAccess;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\Persistence\Mapping\MappingException as PersistenceMappingException;
@@ -64,8 +65,7 @@ final class RelationExtractor
             throw new InvalidEntityException(sprintf('Relation "%s" not found on entity "%s".', $relationName, $entityClass));
         }
 
-        /** @var AssociationMapping $associationMapping */
-        $associationMapping = $metadata->getAssociationMapping($relationName);
+        $associationMapping = $this->normalizeAssociationMapping($metadata->getAssociationMapping($relationName));
 
         $type = $this->resolveRelationType($associationMapping['type']);
         if ($type === 'ManyToMany') {
@@ -86,6 +86,84 @@ final class RelationExtractor
             baseColumn: $join['baseColumn'],
             relatedColumn: $join['relatedColumn'],
         );
+    }
+
+    /**
+     * @param array{
+     *     type?: int,
+     *     targetEntity?: string,
+     *     joinColumns?: list<array<string, bool|int|string|null>|object>,
+     *     mappedBy?: string,
+     * }|object $mapping
+     *
+     * @return AssociationMapping
+     */
+    private function normalizeAssociationMapping(array|object $mapping): array
+    {
+        if (is_array($mapping)) {
+            $type = $mapping['type'] ?? null;
+            $targetEntity = $mapping['targetEntity'] ?? null;
+            $joinColumnsRaw = $mapping['joinColumns'] ?? [];
+            $mappedBy = $mapping['mappedBy'] ?? null;
+        } elseif ($mapping instanceof ArrayAccess) {
+            $type = $mapping['type'] ?? null;
+            $targetEntity = $mapping['targetEntity'] ?? null;
+            $joinColumnsRaw = $mapping['joinColumns'] ?? [];
+            $mappedBy = $mapping['mappedBy'] ?? null;
+        } else {
+            throw new InvalidEntityException('Association mapping must be an array or ArrayAccess.');
+        }
+
+        if (!is_int($type)) {
+            throw new InvalidEntityException('Association mapping "type" must be an integer.');
+        }
+
+        if (!is_string($targetEntity) || $targetEntity === '') {
+            throw new InvalidEntityException('Association mapping "targetEntity" must be a non-empty string.');
+        }
+
+        if (!is_array($joinColumnsRaw)) {
+            throw new InvalidEntityException('Association mapping "joinColumns" must be an array.');
+        }
+
+        $joinColumns = [];
+        foreach ($joinColumnsRaw as $joinColumn) {
+            if (!is_array($joinColumn) && !($joinColumn instanceof ArrayAccess)) {
+                throw new InvalidEntityException('Join column mapping must be an array or ArrayAccess.');
+            }
+
+            $name = $joinColumn['name'] ?? null;
+            if ($name !== null && !is_string($name)) {
+                throw new InvalidEntityException('Join column "name" must be a string or null.');
+            }
+
+            $referenced = $joinColumn['referencedColumnName'] ?? null;
+            if ($referenced !== null && !is_string($referenced)) {
+                throw new InvalidEntityException('Join column "referencedColumnName" must be a string or null.');
+            }
+
+            $joinColumns[] = [
+                'name' => $name,
+                'referencedColumnName' => $referenced,
+            ];
+        }
+
+        $normalized = [
+            'type' => $type,
+            'targetEntity' => $targetEntity,
+            'joinColumns' => $joinColumns,
+        ];
+
+        if ($mappedBy !== null) {
+            if (!is_string($mappedBy)) {
+                throw new InvalidEntityException('Association mapping "mappedBy" must be a string.');
+            }
+
+            $normalized['mappedBy'] = $mappedBy;
+        }
+
+        /** @var AssociationMapping $normalized */
+        return $normalized;
     }
 
     private function resolveRelationType(int $type): string
@@ -131,8 +209,7 @@ final class RelationExtractor
         $targetEntity = $mapping['targetEntity'];
         $targetMetadata = $this->entityManager->getClassMetadata($targetEntity);
 
-        /** @var AssociationMapping $inverseMapping */
-        $inverseMapping = $targetMetadata->getAssociationMapping($mappedBy);
+        $inverseMapping = $this->normalizeAssociationMapping($targetMetadata->getAssociationMapping($mappedBy));
 
         if ($inverseMapping['joinColumns'] === []) {
             throw new UnsupportedRelationException(sprintf('Unable to resolve join column from mappedBy="%s" on "%s".', $mappedBy, $targetEntity));

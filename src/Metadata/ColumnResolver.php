@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rgalstyan\SymfonyAggregatedQueries\Metadata;
 
+use ArrayAccess;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\Mapping\MappingException as PersistenceMappingException;
 use Rgalstyan\SymfonyAggregatedQueries\Exception\InvalidEntityException;
@@ -56,9 +57,19 @@ final class ColumnResolver
                 continue;
             }
 
-            foreach ($associationMapping['joinColumns'] as $joinColumn) {
-                if ($joinColumn['name'] === $fieldOrColumn) {
-                    return $joinColumn['name'];
+            $joinColumns = $associationMapping['joinColumns'];
+            if (!is_array($joinColumns)) {
+                continue;
+            }
+
+            foreach ($joinColumns as $joinColumn) {
+                if (!is_array($joinColumn) && !($joinColumn instanceof ArrayAccess)) {
+                    continue;
+                }
+
+                $name = $joinColumn['name'] ?? null;
+                if (is_string($name) && $name === $fieldOrColumn) {
+                    return $name;
                 }
             }
         }
