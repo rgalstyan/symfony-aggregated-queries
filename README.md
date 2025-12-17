@@ -2,7 +2,7 @@
 
 [![Latest Version](https://img.shields.io/packagist/v/rgalstyan/symfony-aggregated-queries.svg?style=flat-square)](https://packagist.org/packages/rgalstyan/symfony-aggregated-queries)
 [![Total Downloads](https://img.shields.io/packagist/dt/rgalstyan/symfony-aggregated-queries.svg?style=flat-square)](https://packagist.org/packages/rgalstyan/symfony-aggregated-queries)
-[![Tests](https://img.shields.io/github/actions/workflow/status/rgalstyan/symfony-aggregated-queries/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/rgalstyan/symfony-aggregated-queries/actions)
+[![Tests](https://img.shields.io/github/actions/workflow/status/rgalstyan/symfony-aggregated-queries/symfony.yml?branch=main&label=tests&style=flat-square)](https://github.com/rgalstyan/symfony-aggregated-queries/actions)
 [![License](https://img.shields.io/packagist/l/rgalstyan/symfony-aggregated-queries.svg?style=flat-square)](https://packagist.org/packages/rgalstyan/symfony-aggregated-queries)
 
 Reduce multi-relation Doctrine queries to a single optimized SQL statement using JSON aggregation.
