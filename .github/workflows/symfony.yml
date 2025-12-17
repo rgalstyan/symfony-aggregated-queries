@@ -70,6 +70,7 @@ jobs:
     - name: Install dependencies
       run: |
         composer require "symfony/framework-bundle:^${{ matrix.symfony-version }}" --no-update
+        composer require "symfony/var-exporter:^${{ matrix.symfony-version }}" --no-update --dev
         composer install --prefer-dist --no-progress --no-interaction
     
     - name: Run PHPStan
