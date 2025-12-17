@@ -15,16 +15,18 @@ Perfect for read-heavy APIs, dashboards, and admin panels where traditional Doct
 
 ## 🔥 The Problem
 
-Even with proper eager loading, Doctrine generates multiple queries for collections:
+When querying Doctrine entities, relations are loaded either lazily (classic N+1)
+or eagerly using **separate queries for collections**.
+
+Example with traditional Doctrine entity loading:
 
 ```php
-// Traditional Doctrine with eager loading
 $qb = $entityManager->createQueryBuilder();
-$partners = $qb->select('p, profile, country, promocodes')
+$partners = $qb
+    ->select('p, profile, country')
     ->from(Partner::class, 'p')
     ->leftJoin('p.profile', 'profile')
     ->leftJoin('p.country', 'country')
-    ->leftJoin('p.promocodes', 'promocodes')
     ->getQuery()
     ->getResult();
 ```
@@ -36,9 +38,15 @@ SELECT ... FROM partners p
     LEFT JOIN profiles profile ON ...
     LEFT JOIN countries country ON ...
 
-SELECT ... FROM promocodes WHERE partner_id IN (...)  -- N+1 still happens!
-SELECT ... FROM discount_rules WHERE partner_id IN (...)
+    SELECT ... FROM partner_promocodes WHERE partner_id IN (...) -- additional eager-loading query
+SELECT ... FROM discount_rules WHERE promocode_id IN (...)
 ```
+
+While this is not a fetch join, it still results in multiple database round-trips,
+heavy Doctrine hydration, increased memory usage, and slower response times.
+
+Fetch joins can reduce the number of queries to one, but introduce row explosion,
+break pagination, and do not scale when multiple collections are involved.
 
 **Doctrine's Known Issue:**  
 Even with `fetch="EAGER"`, OneToMany and ManyToMany relations cause N+1 queries. This is a [documented limitation](https://github.com/doctrine/orm/issues/4762) that has existed since 2015.
