@@ -98,20 +98,34 @@ LEFT JOIN countries rel_country ON rel_country.id = e.country_id
 
 ## 📊 Performance
 
-Real benchmark on **2,000 partners** with 4 relations (50 records fetched):
+Real-world benchmark using a Symfony application with a realistic e-commerce dataset
+(products, images, reviews).
+
+**Dataset context:**
+- ~100,000 products
+- ~300,000 images
+- ~500,000 reviews
+
+Example run (**limit = 1000**):
 
 | Method | Time | Memory | Queries |
-|--------|------|--------|---------|
-| Traditional Doctrine | 30.12ms | 2.45MB | 4 |
-| Aggregated Query | 4.23ms | 0.19MB | 1 |
-| **Improvement** | **⚡ 85.9% faster** | **💾 92.2% less** | **🔢 75% fewer** |
+|------|------|--------|---------|
+| Traditional Eloquent / Doctrine-style loading | 167.49ms | 24.37 MB | 23 |
+| Aggregated Query | 28.17ms | 6.91 MB | 1 |
+| **Improvement** | **⚡ 83.2% faster** | **💾 71.6% less** | **🔢 22 fewer** |
 
-**At scale** (10,000 API requests/day):
-- **30,000 fewer database queries**
-- **4.3 minutes saved in response time**
-- **22.6GB less memory usage**
+> These numbers depend on hardware and DB state, but the overall trend is consistent.
+> The primary gains come from reduced SQL round-trips and avoiding ORM entity hydration.
 
----
+### Reproducible benchmark project
+
+A standalone Symfony-based benchmark with full setup instructions and fixtures
+is available here:
+
+- **https://github.com/rgalstyan/doctrine-aggregated-queries-benchmark**
+
+The benchmark focuses on **read-only, DTO-style queries** and compares
+traditional ORM loading versus aggregated SQL queries in real-world conditions.
 
 ## 📋 Requirements
 
